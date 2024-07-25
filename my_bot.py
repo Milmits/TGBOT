@@ -2,6 +2,8 @@ from telebot import TeleBot, types
 import config
 import random
 
+M = 'for commit'
+
 bot = TeleBot(config.BOT_TOKEN)
 
 help_message = """Привет, Доступные команды:
