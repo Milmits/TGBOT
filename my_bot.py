@@ -41,4 +41,4 @@ def send_some_message(message: types.Message):
 
 
 
-bot.infinity_polling()
+bot.infinity_polling(skip_pending=True)
