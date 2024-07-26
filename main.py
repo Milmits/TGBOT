@@ -20,12 +20,28 @@ def handle_command_help(message: types.Message):
 # Команды менюшки_4
 @bot.message_handler(commands=["wolf"])
 def send_wolf_photo(message: types.Message):
-    bot.send_photo(message.chat.id, photo=config.WOLF_photo)
+    bot.send_photo(message.chat.id, photo=config.WOLF_photo, reply_to_message_id=message.id)
+
+#Команды менюшки_5
+#Отправка пользователю фото в виде файла
+@bot.message_handler(commands=["sunrise_file"])
+def send_sunrise_photo_from_disk(message: types.Message):
+    photo_file = types.InputFile('pics/sunrise-pic.jpg')
+    msg = bot.send_photo(message.chat.id, photo=photo_file)
+
+#Команды менюшки_5
+#
+@bot.message_handler(commands=["sunrise_by_id"])
+def send_sunrise_picture_by_file_id(message: types.Message):
+    bot.send_photo(message.chat.id, photo=config.SUNRISE_PIC_FILE_ID)
+
+
 
 #Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])
 def handle_sticker(message: types.Message):
     bot.send_message(message.chat.id, "Классный стикер!", reply_to_message_id=message.id)
+
 #Реакция на событие - реакция на подпись под картинкой "волк" (1)
 def is_wolf_in_caption(message: types.Message):
     return message.caption and "волк" in message.caption.lower()
@@ -33,17 +49,16 @@ def is_wolf_in_caption(message: types.Message):
 #Реакция на событие - реакция на подпись под картинкой "волк" (2)
 @bot.message_handler(content_types=["photo"], func=is_wolf_in_caption)
 def handle_photo_with_wolf_caption(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text='Nice photo!')
+    bot.send_message(chat_id=message.chat.id, text='Nice photo!', reply_to_message_id=message.id)
 
 # Реакция на событие - дублируем последнее фото без подписи
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message: types.Message):
-    if message.caption:
-        print("Подпись", message.caption)
-    else:
-        print("Отсутствует подпись: ", message.caption)
     photo_file_id = message.photo[-1].file_id
-    bot.send_photo(message.chat.id, photo=photo_file_id, reply_to_message_id=message.id)
+    caption_text = 'Классное фото!'
+    if message.caption:
+        caption_text += "\nПодпись:\n" + message.caption
+    bot.send_photo(message.chat.id, photo=photo_file_id, reply_to_message_id=message.id, caption=caption_text)
 
 # Реакция на событие - голосовое сообщение
 @bot.message_handler(content_types=["voice"])
@@ -62,7 +77,7 @@ def send_some_message(message: types.Message):
         text = 'До новых встреч!'
     bot.send_message(message.chat.id, text)
 
+
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
     bot.infinity_polling(skip_pending=True)
-
