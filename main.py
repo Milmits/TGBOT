@@ -1,7 +1,12 @@
+#библиотека для работы с tg ботом
 from telebot import TeleBot, types
+
 import config
 import random
 import messagepy
+
+#библиотека input, output для работы с файлами
+from io import StringIO, BytesIO
 
 bot = TeleBot(config.BOT_TOKEN)
 
@@ -29,13 +34,45 @@ def send_sunrise_photo_from_disk(message: types.Message):
     photo_file = types.InputFile('pics/sunrise-pic.jpg')
     msg = bot.send_photo(message.chat.id, photo=photo_file)
 
-#Команды менюшки_5
-#
+#Команды менюшки_6
+#Отправка пользователю фото по id картинки
 @bot.message_handler(commands=["sunrise_by_id"])
 def send_sunrise_picture_by_file_id(message: types.Message):
     bot.send_photo(message.chat.id, photo=config.SUNRISE_PIC_FILE_ID)
 
+#Команды менюшки_7
+#Отправка пользователю фото как документ
+@bot.message_handler(commands=["sunrise_doc"])
+def send_sunrise_doc(message: types.Message):
+    photo_file = types.InputFile('pics/sunrise-pic.jpg')
+    bot.send_document(chat_id=message.chat.id, document=photo_file)
 
+#Команды менюшки_8
+#Отправка пользователю фото как документ по id картинки
+@bot.message_handler(commands=["wolf_doc_id"])
+def send_wolf_doc_by_id(message: types.Message):
+    bot.send_document(chat_id=message.chat.id, document=config.WOLF_photo)
+
+#Команды менюшки_9
+#Отправка пользователю файла, который находится в нашей дерректории
+@bot.message_handler(commands=["file_txt"])
+def send_file_txt(message: types.Message):
+    file_doc = types.InputFile('text.txt')
+    bot.send_document(chat_id=message.chat.id, document=file_doc)
+
+#Команды менюшки_10
+#Отправка пользователю файла, который находится на нашем pc
+@bot.message_handler(commands=["text"])
+def send_text_doc_from_memory(message: types.Message):
+    file = StringIO("Приветики)))")
+    file.write("Hello peoples!!!\n")
+    file.write("Random number\n")
+    file.write(str(random.randint(1, 1000)))
+    file.seek(0)
+    file_text_doc = types.InputFile(file)
+    bot.send_document(chat_id=message.chat.id, document=file_text_doc, visible_file_name="yor_file_from_pc.txt")
+
+#----------------------------------------------------------------------------
 
 #Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])

@@ -1,0 +1,4 @@
+Hello world!
+service_acc - abc
+bot_token == qwerty
+admin_password == 1234567890
