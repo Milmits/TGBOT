@@ -4,30 +4,53 @@ import random
 import messagepy
 
 bot = TeleBot(config.BOT_TOKEN)
+
+#Команды менюшки_1
 @bot.message_handler(commands=["joke"])
 def send_random_joke(message: types.Message):
     bot.send_message(message.chat.id, random.choice(messagepy.UNKNOWN_JOKES))
-
+#Команды менюшки_2
 @bot.message_handler(commands=["start"])
 def handle_command_start(message: types.Message):
     bot.send_message(message.chat.id, messagepy.start_message)
-
+#Команды менюшки_3
 @bot.message_handler(commands=["help"])
 def handle_command_help(message: types.Message):
     bot.send_message(message.chat.id, messagepy.help_message)
+# Команды менюшки_4
+@bot.message_handler(commands=["wolf"])
+def send_wolf_photo(message: types.Message):
+    bot.send_photo(message.chat.id, photo=config.WOLF_photo)
+
+#Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])
 def handle_sticker(message: types.Message):
     bot.send_message(message.chat.id, "Классный стикер!", reply_to_message_id=message.id)
+#Реакция на событие - реакция на подпись под картинкой "волк" (1)
+def is_wolf_in_caption(message: types.Message):
+    return message.caption and "волк" in message.caption.lower()
 
+#Реакция на событие - реакция на подпись под картинкой "волк" (2)
+@bot.message_handler(content_types=["photo"], func=is_wolf_in_caption)
+def handle_photo_with_wolf_caption(message: types.Message):
+    bot.send_message(chat_id=message.chat.id, text='Nice photo!')
+
+# Реакция на событие - дублируем последнее фото без подписи
 @bot.message_handler(content_types=["photo"])
 def handle_photo(message: types.Message):
+    if message.caption:
+        print("Подпись", message.caption)
+    else:
+        print("Отсутствует подпись: ", message.caption)
     photo_file_id = message.photo[-1].file_id
-    bot.send_photo(message.chat.id, photo_file_id, reply_to_message_id=message.id)
-    with open('wolf.jpg', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo)
+    bot.send_photo(message.chat.id, photo=photo_file_id, reply_to_message_id=message.id)
+
+# Реакция на событие - голосовое сообщение
 @bot.message_handler(content_types=["voice"])
 def handle_voice(message: types.Message):
     bot.send_message(message.chat.id, "К сожалению я не могу прослушать что вы сказали :(", reply_to_message_id=message.id)
+
+# Реакция на событие - ответ если определенные слова есть в сообщении пользователя
 @bot.message_handler()
 def send_some_message(message: types.Message):
     text = message.text
