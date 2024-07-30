@@ -1,6 +1,8 @@
 #библиотека для работы с tg ботом
 from telebot import TeleBot, types
+from telebot import custom_filters
 
+import requests
 import config
 import random
 import messagepy
@@ -9,6 +11,29 @@ import messagepy
 from io import StringIO, BytesIO
 
 bot = TeleBot(config.BOT_TOKEN)
+bot.add_custom_filter(custom_filters.TextMatchFilter())
+
+#Для прогноза погоды в реальном времени
+def get_weather(city: str, api_key: str) -> str:
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=ru"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        weather_description = data['weather'][0]['description']
+        temperature = data['main']['temp']
+        feels_like = data['main']['feels_like']
+        humidity = data['main']['humidity']
+        wind_speed = data['wind']['speed']
+
+        return (f"Погода в {city}:\n"
+                f"Описание: {weather_description}\n"
+                f"Температура: {temperature}°C\n"
+                f"Ощущается как: {feels_like}°C\n"
+                f"Влажность: {humidity}%\n"
+                f"Скорость ветра: {wind_speed} м/с")
+    else:
+        return "Не удалось получить данные о погоде."
+
 
 #Команды менюшки_1
 @bot.message_handler(commands=["joke"])
@@ -75,6 +100,14 @@ def send_text_doc_from_memory(message: types.Message):
     file_text_doc = types.InputFile(file)
     bot.send_document(chat_id=message.chat.id, document=file_text_doc, visible_file_name="yor_file_from_pc.txt")
 
+
+@bot.message_handler(commands=["weather"])
+def handle_weather_request(message: types.Message):
+    weather_info = get_weather("Минск", config.OPENWEATHER_API_KEY)
+    bot.send_message(message.chat.id, text=weather_info)
+
+
+
 #----------------------------------------------------------------------------
 
 #Реакция на событие - отправка стикера
@@ -105,6 +138,7 @@ def handle_photo(message: types.Message):
 def handle_voice(message: types.Message):
     bot.send_message(message.chat.id, "К сожалению я не могу прослушать что вы сказали :(", reply_to_message_id=message.id)
 
+
 # Реакция на событие - ответ если определенные слова есть в сообщении пользователя
 @bot.message_handler()
 def send_some_message(message: types.Message):
@@ -121,3 +155,4 @@ def send_some_message(message: types.Message):
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
     bot.infinity_polling(skip_pending=True)
+
