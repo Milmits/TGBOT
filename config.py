@@ -5,3 +5,6 @@ WOLF_photo = 'https://masterpiecer-images.s3.yandex.net/76e21c5c75d011eebac46a02
 SUNRISE_PIC_FILE_ID = 'AgACAgIAAxkDAAIBFmaj7V1jVzuhIKD4oZIhDqZlKIRoAAIe4DEbeGkhSbFRuL6jKPdyAQADAgADeQADNQQ'
 
 OPENWEATHER_API_KEY = '0d9b27dd7edbdcd0a7ae9601cf69f334'
+
+BOT_ADMIN_ID = [625670582]
+

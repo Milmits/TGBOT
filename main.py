@@ -1,17 +1,21 @@
 #библиотека для работы с tg ботом
 from telebot import TeleBot, types
 from telebot import custom_filters
+#библиотека input, output для работы с файлами
+from io import StringIO, BytesIO
 
 import requests
 import config
 import random
 import messagepy
+import my_filters
 
-#библиотека input, output для работы с файлами
-from io import StringIO, BytesIO
 
 bot = TeleBot(config.BOT_TOKEN)
 bot.add_custom_filter(custom_filters.TextMatchFilter())
+bot.add_custom_filter(custom_filters.TextContainsFilter())
+bot.add_custom_filter(my_filters.IsUserBotAdmin())
+bot.add_custom_filter(my_filters.ContainsWordFilter())
 
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
@@ -100,15 +104,38 @@ def send_text_doc_from_memory(message: types.Message):
     file_text_doc = types.InputFile(file)
     bot.send_document(chat_id=message.chat.id, document=file_text_doc, visible_file_name="yor_file_from_pc.txt")
 
-
-@bot.message_handler(commands=["weather"])
+#Реакция на событие - по опорному слову выдаётся актуальная погода в городе Минск
+@bot.message_handler(text_contains='погода')
 def handle_weather_request(message: types.Message):
     weather_info = get_weather("Минск", config.OPENWEATHER_API_KEY)
     bot.send_message(message.chat.id, text=weather_info)
 
+# Команды менюшки_11
+# Отправка пользователю актуальной погоды в городе Минск
+@bot.message_handler(commands=["weather"])
+def command_weather_request(message: types.Message):
+    weather_info = get_weather("Минск", config.OPENWEATHER_API_KEY)
+    bot.send_message(message.chat.id, text=weather_info)
 
+# Команды менюшки_12
+# Отправка пользователю id чата
+@bot.message_handler(commands=["chat_id"])
+def handle_chat_id_request(message: types.Message):
+    text = f'Айди чата: {message.chat.id}'
+    bot.send_message(message.chat.id,text=text)
 
+# Команды менюшки_13(скрытая)(1)
+# Отправка пользователю id чата
+@bot.message_handler(commands=["admin"], is_bot_admin=True)
+def handle_admin_secret(message: types.Message):
+    bot.send_message(message.chat.id, text=messagepy.ADMIN)
+# Команды менюшки_13(скрытая)(2)
+# Отправка пользователю id чата
+@bot.message_handler(commands=["admin"], is_bot_admin=False)
+def handle_not_admin_secret(message: types.Message):
+    bot.send_message(message.chat.id, text=messagepy.NOT_ADMIN)
 #----------------------------------------------------------------------------
+
 
 #Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])
