@@ -14,14 +14,17 @@ bot = TeleBot(config.BOT_TOKEN)
 @bot.message_handler(commands=["joke"])
 def send_random_joke(message: types.Message):
     bot.send_message(message.chat.id, random.choice(messagepy.UNKNOWN_JOKES))
+    
 #Команды менюшки_2
 @bot.message_handler(commands=["start"])
 def handle_command_start(message: types.Message):
     bot.send_message(message.chat.id, messagepy.start_message)
+
 #Команды менюшки_3
 @bot.message_handler(commands=["help"])
 def handle_command_help(message: types.Message):
     bot.send_message(message.chat.id, messagepy.help_message)
+
 # Команды менюшки_4
 @bot.message_handler(commands=["wolf"])
 def send_wolf_photo(message: types.Message):
