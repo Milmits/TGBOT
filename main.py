@@ -176,6 +176,8 @@ def send_some_message(message: types.Message):
         text = 'Нормально!'
     elif 'пока' in text.lower() or 'до свидания' in text.lower():
         text = 'До новых встреч!'
+    elif 'Милан' in text.lower():
+        text = 'Создатель'
     bot.send_message(message.chat.id, text)
 
 
