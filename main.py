@@ -3,6 +3,8 @@ from telebot import TeleBot, types
 from telebot import custom_filters
 #библиотека input, output для работы с файлами
 from io import StringIO, BytesIO
+#библиотека для форматирования текста
+from telebot import formatting
 
 import requests
 import config
@@ -134,13 +136,20 @@ def handle_admin_secret(message: types.Message):
 @bot.message_handler(commands=["admin"], is_bot_admin=False)
 def handle_not_admin_secret(message: types.Message):
     bot.send_message(message.chat.id, text=messagepy.NOT_ADMIN)
+
+# Команды менюшки_14
+# Изменяет шрифт текста
+@bot.message_handler(commands=["md"])
+def send_markdown_message(message: types.Message):
+    bot.send_message(chat_id=message.chat.id, text=messagepy.markdown_text, parse_mode="MarkdownV2")
 #----------------------------------------------------------------------------
+
 
 
 #Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])
 def handle_sticker(message: types.Message):
-    bot.send_message(message.chat.id, "Классный стикер!", reply_to_message_id=message.id)
+    bot.send_message(message.chat.id, text=formatting.mbold("Классный стикер!"), parse_mode="MarkdownV2", reply_to_message_id=message.id)
 
 #Реакция на событие - реакция на подпись под картинкой "волк" (1)
 def is_wolf_in_caption(message: types.Message):
@@ -165,20 +174,29 @@ def handle_photo(message: types.Message):
 def handle_voice(message: types.Message):
     bot.send_message(message.chat.id, "К сожалению я не могу прослушать что вы сказали :(", reply_to_message_id=message.id)
 
+# Копирование и отсылка сообщения в том же формате,
+# в котором нам его отправил пользователь
+@bot.message_handler()
+def copy_incoming_message(message: types.Message):
+    # if message.entities:
+    #     print('message entities:')
+    #     for entity in message.entities:
+    #         print(entity)
+    bot.copy_message(chat_id=message.chat.id, from_chat_id=message.chat.id, message_id=message.id)
 
 # Реакция на событие - ответ если определенные слова есть в сообщении пользователя
 @bot.message_handler()
-def send_some_message(message: types.Message):
+def send_echo_message(message: types.Message):
     text = message.text
-    if 'привет' in text.lower():
-        text = 'Привет! Как ты?'
-    elif 'как дела' in text.lower():
-        text = 'Нормально!'
-    elif 'пока' in text.lower() or 'до свидания' in text.lower():
-        text = 'До новых встреч!'
-    elif 'Милан' in text.lower():
-        text = 'Создатель'
-    bot.send_message(message.chat.id, text)
+    # if 'привет' in text.lower():
+    #     text = 'Привет! Как ты?'
+    # elif 'как дела' in text.lower():
+    #     text = 'Нормально!'
+    # elif 'пока' in text.lower() or 'до свидания' in text.lower():
+    #     text = 'До новых встреч!'
+    # elif 'Милан' in text.lower():
+    #     text = 'Создатель'
+    bot.send_message(chat_id=message.chat.id, text=text, entities=message.entities)
 
 
 #Проверка, для запуска именно этого файла
