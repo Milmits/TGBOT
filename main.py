@@ -6,6 +6,7 @@ from io import StringIO, BytesIO
 #библиотека для форматирования текста
 from telebot import formatting
 
+import os
 import requests
 import config
 import random
@@ -201,5 +202,6 @@ def send_echo_message(message: types.Message):
 
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
+    print('environ', os.environ)
     bot.infinity_polling(skip_pending=True)
 
