@@ -163,7 +163,7 @@ def convert_usd_to_bel_rub(message: types.Message):
     usd_amount = int(arguments)
     bel_rub_amount = usd_amount * currencies.USD_BEL_RUB
 
-    bot.send_message(chat_id=message.chat.id, text=str(bel_rub_amount), parse_mode="HTML")
+    bot.send_message(chat_id=message.chat.id, text=messagepy.format_usd_to_bel_rub_message(usd_amount=usd_amount, bel_rub_amount=bel_rub_amount), parse_mode="HTML")
 #----------------------------------------------------------------------------
 
 
