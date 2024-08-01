@@ -24,9 +24,9 @@ convert_usd_to_bel_rub_how_to = formatting.format_text('Пожалуйста у�
 invalid_argument_text = "Неправильный аргумент: "
 
 def format_usd_to_bel_rub_message(usd_amount, bel_rub_amount):
-    return formatting.format_text(formatting.hcode(f"{usd_amount:.2f}"), "USD это примерно", formatting.hcode(f"{bel_rub_amount:.2f}"), "BEL RUB ", separator=" ")
+    return formatting.format_text(formatting.hcode(f"{usd_amount:,.2f}"), "USD это примерно", formatting.hcode(f"{bel_rub_amount:,.2f}"), "BEL RUB ", separator=" ")
 
-ADMIN = 'Безумно рад вашему возвращению Overlord!!!!!!'Ё
+ADMIN = 'Безумно рад вашему возвращению Overlord!!!!!!'
 NOT_ADMIN = 'Извините, но у вы не имеете статуса ADMIN'
 
 markdown_text = """

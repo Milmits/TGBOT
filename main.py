@@ -22,6 +22,21 @@ bot.add_custom_filter(custom_filters.TextContainsFilter())
 bot.add_custom_filter(my_filters.IsUserBotAdmin())
 bot.add_custom_filter(my_filters.ContainsWordFilter())
 
+
+#Для получения актуальной информации об конвертации валют
+def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> float:
+    url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{from_currency}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if to_currency in data['conversion_rates']:
+            return data['conversion_rates'][to_currency]
+        else:
+            raise ValueError(f"Unsupported currency: {to_currency}")
+    else:
+        raise ValueError("Failed to get exchange rate data.")
+
+
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=ru"
@@ -155,15 +170,23 @@ def convert_usd_to_bel_rub(message: types.Message):
         bot.send_message(chat_id=message.chat.id, text=messagepy.convert_usd_to_bel_rub_how_to, parse_mode="HTML")
         return
 
-    if not arguments.isdigit():
-        text = formatting.format_text(formatting.format_text(messagepy.invalid_argument_text, formatting.hcode(arguments), separator=""), messagepy.convert_usd_to_bel_rub_how_to)
+    try:
+        usd_amount = float(arguments)
+    except ValueError:
+        text = formatting.format_text(
+            formatting.format_text(messagepy.invalid_argument_text, formatting.hcode(arguments), separator=""),
+            messagepy.convert_usd_to_bel_rub_how_to)
         bot.send_message(chat_id=message.chat.id, text=text, parse_mode="HTML")
         return
 
-    usd_amount = int(arguments)
-    bel_rub_amount = usd_amount * currencies.USD_BEL_RUB
-
-    bot.send_message(chat_id=message.chat.id, text=messagepy.format_usd_to_bel_rub_message(usd_amount=usd_amount, bel_rub_amount=bel_rub_amount), parse_mode="HTML")
+    try:
+        exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, "USD", "BYN")
+        bel_rub_amount = usd_amount * exchange_rate
+        bot.send_message(chat_id=message.chat.id, text=messagepy.format_usd_to_bel_rub_message(usd_amount=usd_amount,
+                                                                                               bel_rub_amount=bel_rub_amount),
+                         parse_mode="HTML")
+    except ValueError as e:
+        bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
 #----------------------------------------------------------------------------
 
 
