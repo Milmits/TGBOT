@@ -5,6 +5,8 @@ from telebot import custom_filters
 from io import StringIO, BytesIO
 #библиотека для форматирования текста
 from telebot import formatting
+#библиотека для конвертации валют
+from telebot import util
 
 import os
 import requests
@@ -12,7 +14,7 @@ import config
 import random
 import messagepy
 import my_filters
-
+import currencies
 
 bot = TeleBot(config.BOT_TOKEN)
 bot.add_custom_filter(custom_filters.TextMatchFilter())
@@ -143,7 +145,27 @@ def handle_not_admin_secret(message: types.Message):
 @bot.message_handler(commands=["md"])
 def send_markdown_message(message: types.Message):
     bot.send_message(chat_id=message.chat.id, text=messagepy.markdown_text, parse_mode="MarkdownV2")
+
+# Команды менюшки_15
+# Конвертация валют
+@bot.message_handler(commands=["usd_to_bel_rub"])
+def convert_usd_to_bel_rub(message: types.Message):
+    arguments = util.extract_arguments(message.text)
+    if not arguments:
+        bot.send_message(chat_id=message.chat.id, text=messagepy.convert_usd_to_bel_rub_how_to, parse_mode="HTML")
+        return
+
+    if not arguments.isdigit():
+        text = formatting.format_text(formatting.format_text(messagepy.invalid_argument_text, formatting.hcode(arguments), separator=""), messagepy.convert_usd_to_bel_rub_how_to)
+        bot.send_message(chat_id=message.chat.id, text=text, parse_mode="HTML")
+        return
+
+    usd_amount = int(arguments)
+    bel_rub_amount = usd_amount * currencies.USD_BEL_RUB
+
+    bot.send_message(chat_id=message.chat.id, text=str(bel_rub_amount), parse_mode="HTML")
 #----------------------------------------------------------------------------
+
 
 
 
@@ -151,6 +173,7 @@ def send_markdown_message(message: types.Message):
 @bot.message_handler(content_types=["sticker"])
 def handle_sticker(message: types.Message):
     bot.send_message(message.chat.id, text=formatting.mbold("Классный стикер!"), parse_mode="MarkdownV2", reply_to_message_id=message.id)
+
 
 #Реакция на событие - реакция на подпись под картинкой "волк" (1)
 def is_wolf_in_caption(message: types.Message):

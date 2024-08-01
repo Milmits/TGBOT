@@ -14,5 +14,8 @@ SUNRISE_PIC_FILE_ID = 'AgACAgIAAxkDAAIBFmaj7V1jVzuhIKD4oZIhDqZlKIRoAAIe4DEbeGkhS
 
 OPENWEATHER_API_KEY = '0d9b27dd7edbdcd0a7ae9601cf69f334'
 
-BOT_ADMIN_ID = [625670582]
+admin_ids = config.get("admin", 'admin_id', fallback='')
+admin_ids = [admin_id.strip() for admin_id in admin_ids.split(",")]
+admin_ids = [int(admin_id) for admin_id in admin_ids if admin_id]
+BOT_ADMIN_USER_IDS = [admin_ids]
 

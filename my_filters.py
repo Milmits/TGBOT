@@ -6,7 +6,7 @@ class IsUserBotAdmin(SimpleCustomFilter):
     key = "is_bot_admin"
 
     def check(self, message: Message):
-        return message.from_user.id in config.BOT_ADMIN_ID
+        return message.from_user.id in config.BOT_ADMIN_USER_IDS
 
 
 class ContainsWordFilter(AdvancedCustomFilter):
