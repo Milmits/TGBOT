@@ -16,6 +16,7 @@ import random
 import messagepy
 import my_filters
 import currencies
+import re
 
 bot = TeleBot(config.BOT_TOKEN)
 bot.add_custom_filter(custom_filters.TextMatchFilter())
@@ -33,9 +34,9 @@ def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> flo
         if to_currency in data['conversion_rates']:
             return data['conversion_rates'][to_currency]
         else:
-            raise ValueError(f"Unsupported currency: {to_currency}")
+            raise ValueError(f"Неподдерживаемая валюта: {to_currency}")
     else:
-        raise ValueError("Failed to get exchange rate data.")
+        raise ValueError("Не удалось получить данные о курсе валют..")
 
 # Генерация клавиатуры для выбора валюты
 def generate_currency_keyboard():
@@ -50,26 +51,34 @@ def generate_currency_keyboard():
 # Конвертация любых валют
 @bot.message_handler(commands=["cvt"])
 def currency_conversion(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text="Выберите валюту для конвертации:", reply_markup=generate_currency_keyboard())
+    bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard())
 
 # Обработчик выбора валюты
 @bot.callback_query_handler(func=lambda call: True)
 def handle_currency_selection(call: types.CallbackQuery):
     from_currency = call.data
-    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации: (например: 100 EUR)")
+    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации в формате: 100 {from_currency} TO EUR")
     bot.register_next_step_handler(msg, process_amount_step, from_currency)
 
 # Обработка ввода суммы и валюты для конвертации
 def process_amount_step(message: types.Message, from_currency: str):
     try:
-        amount_str, to_currency = message.text.split()
-        amount = float(amount_str)
-        exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency.upper())
-        converted_amount = amount * exchange_rate
-        result_text = f"{amount} {from_currency} = {converted_amount:.2f} {to_currency.upper()}"
-        bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
+        match = re.match(r"(\d+(?:\.\d+)?)\s+" + re.escape(from_currency) + r"\s+TO\s+(\w+)", message.text, re.IGNORECASE)
+        if match:
+            amount_str, to_currency = match.groups()
+            amount = float(amount_str)
+            exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency.upper())
+            converted_amount = amount * exchange_rate
+            result_text = f"{amount} {from_currency} = {converted_amount:.2f} {to_currency.upper()}"
+            bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
+        else:
+            raise ValueError("Invalid input format")
+    except ValueError as e:
+        bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {str(e)}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: 100 {from_currency} TO EUR")
+        bot.register_next_step_handler(message, process_amount_step, from_currency)
     except Exception as e:
-        bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
+        bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {str(e)}. Пожалуйста, попробуйте снова.")
+        bot.register_next_step_handler(message, process_amount_step, from_currency)
 
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
@@ -224,8 +233,6 @@ def convert_usd_to_bel_rub(message: types.Message):
 
 
 #----------------------------------------------------------------------------
-
-
 
 
 #Реакция на событие - отправка стикера
