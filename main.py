@@ -53,13 +53,13 @@ def generate_currency_keyboard():
 def currency_conversion(message: types.Message):
     bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard())
 
-# Обработчик выбора валюты
 @bot.callback_query_handler(func=lambda call: True)
 def handle_currency_selection(call: types.CallbackQuery):
     from_currency = call.data
     msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации в формате: 100 {from_currency} TO EUR")
     bot.register_next_step_handler(msg, process_amount_step, from_currency)
 
+# Обработка ввода суммы и валюты для конвертации
 # Обработка ввода суммы и валюты для конвертации
 def process_amount_step(message: types.Message, from_currency: str):
     try:
@@ -69,15 +69,18 @@ def process_amount_step(message: types.Message, from_currency: str):
             amount = float(amount_str)
             exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency.upper())
             converted_amount = amount * exchange_rate
-            result_text = f"{amount} {from_currency} = {converted_amount:.2f} {to_currency.upper()}"
+            result_text = (
+                f"{formatting.hcode(str(amount))} {formatting.hcode(from_currency)} = "
+                f"{formatting.hcode(f'{converted_amount:.2f}')} {formatting.hcode(to_currency.upper())}"
+            )
             bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
         else:
             raise ValueError("Invalid input format")
     except ValueError as e:
-        bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {str(e)}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: 100 {from_currency} TO EUR")
+        bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: 100 {from_currency} TO EUR")
         bot.register_next_step_handler(message, process_amount_step, from_currency)
     except Exception as e:
-        bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {str(e)}. Пожалуйста, попробуйте снова.")
+        bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова.")
         bot.register_next_step_handler(message, process_amount_step, from_currency)
 
 #Для прогноза погоды в реальном времени
