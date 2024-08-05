@@ -1,12 +1,13 @@
 #библиотека для работы с tg ботом
-from telebot import TeleBot, types
+from telebot import TeleBot, types, util, formatting
 from telebot import custom_filters
 #библиотека input, output для работы с файлами
 from io import StringIO, BytesIO
 #библиотека для форматирования текста
 from telebot import formatting
-#библиотека для конвертации валют
+#библиотеки для конвертации валют
 from telebot import util
+from telebot import types
 
 import os
 import requests
@@ -36,6 +37,39 @@ def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> flo
     else:
         raise ValueError("Failed to get exchange rate data.")
 
+# Генерация клавиатуры для выбора валюты
+def generate_currency_keyboard():
+    markup = types.InlineKeyboardMarkup(row_width=4)
+    currencies = ["USD", "EUR", "GBP", "BYN", "RUB", "CNY", "JPY", "AUD"]
+    buttons = [types.InlineKeyboardButton(text=cur, callback_data=cur) for cur in currencies]
+    markup.add(*buttons)
+    return markup
+
+# Обработчик команды для конвертации валюты
+# Команды менюшки_0
+# Конвертация любых валют
+@bot.message_handler(commands=["cvt"])
+def currency_conversion(message: types.Message):
+    bot.send_message(chat_id=message.chat.id, text="Выберите валюту для конвертации:", reply_markup=generate_currency_keyboard())
+
+# Обработчик выбора валюты
+@bot.callback_query_handler(func=lambda call: True)
+def handle_currency_selection(call: types.CallbackQuery):
+    from_currency = call.data
+    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации: (например: 100 EUR)")
+    bot.register_next_step_handler(msg, process_amount_step, from_currency)
+
+# Обработка ввода суммы и валюты для конвертации
+def process_amount_step(message: types.Message, from_currency: str):
+    try:
+        amount_str, to_currency = message.text.split()
+        amount = float(amount_str)
+        exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency.upper())
+        converted_amount = amount * exchange_rate
+        result_text = f"{amount} {from_currency} = {converted_amount:.2f} {to_currency.upper()}"
+        bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
+    except Exception as e:
+        bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
 
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
@@ -187,6 +221,8 @@ def convert_usd_to_bel_rub(message: types.Message):
                          parse_mode="HTML")
     except ValueError as e:
         bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
+
+
 #----------------------------------------------------------------------------
 
 

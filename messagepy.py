@@ -13,6 +13,7 @@ help_message = """Привет, Доступные команды:
     /joke - случайная шутка xD
     и много чего еще...
     /usd_to_bel_rub - конвертировать 1 доллар в белорусские рубли
+    /cvt 1 currancy - конвертировать 1 валюту в белорусские рубли
 
 Этот бот отправит вам то же сообщение, что и вы ему!
 """
@@ -21,7 +22,14 @@ start_message = 'Привет, давай знакомиться!!'
 convert_usd_to_bel_rub_how_to = formatting.format_text('Пожалуйста укажите аргумент для конвертации:',
                                                        formatting.hcode("/usd_to_bel_rub 1"))
 
+cvt_help_message = formatting.format_text('Пожалуйста укажите аргумент для конвертации:',
+                                                       formatting.hcode("/usd_to_bel_rub 1"))
+
+cvt_how_to = formatting.format_text(formatting.hcode("/usd_to_bel_rub 1"))
+
 invalid_argument_text = "Неправильный аргумент: "
+
+
 
 def format_usd_to_bel_rub_message(usd_amount, bel_rub_amount):
     return formatting.format_text(formatting.hcode(f"{usd_amount:,.2f}"), "USD это примерно", formatting.hcode(f"{bel_rub_amount:,.2f}"), "BEL RUB ", separator=" ")
