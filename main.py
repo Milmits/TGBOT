@@ -8,6 +8,8 @@ from telebot import formatting
 #библиотеки для конвертации валют
 from telebot import util
 from telebot import types
+#добавляем команды
+from commands import default_commands
 
 import os
 import requests
