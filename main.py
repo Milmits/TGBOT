@@ -356,6 +356,7 @@ def send_echo_message(message: types.Message):
 
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
+    bot.enable_saving_states()
     bot.set_my_commands(default_commands)
     bot.infinity_polling(skip_pending=True)
 
