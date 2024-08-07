@@ -16,7 +16,7 @@ default_commands = [
     BotCommand("chat_id", 'Вы можете узнать фактический идентификатор чата'),
     BotCommand("md", 'Пометить текст'),
     BotCommand("usd_to_bel_rub", 'Конвертировать USD в BEL_RUB'),
-    BotCommand("set_my_currency", 'Добавить валюту в меню')
-
+    BotCommand("set_my_currency", 'Добавить валюту в меню'),
+    BotCommand("delete_my_currency", 'Удалить валюту в меню')
 ]
 
