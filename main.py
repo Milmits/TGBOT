@@ -19,6 +19,25 @@ import messagepy
 import my_filters
 import currencies
 import re
+import json
+
+#Создание файла для хранения пользовательских валют:
+#--------------------------------------------------------------------------------------------
+USER_CURRENCIES_FILE = "user_currencies.json"
+currency_code_pattern = re.compile(r'^[A-Z]{3}$')
+
+def load_user_currencies():
+    if os.path.exists(USER_CURRENCIES_FILE):
+        with open(USER_CURRENCIES_FILE, "r") as file:
+            return json.load(file)
+    return {}
+
+def save_user_currencies(user_currencies):
+    with open(USER_CURRENCIES_FILE, "w") as file:
+        json.dump(user_currencies, file)
+
+user_currencies = load_user_currencies()
+#--------------------------------------------------------------------------------------------
 
 bot = TeleBot(config.BOT_TOKEN)
 bot.add_custom_filter(custom_filters.TextMatchFilter())
@@ -38,33 +57,35 @@ def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> flo
         else:
             raise ValueError(f"Неподдерживаемая валюта: {to_currency}")
     else:
-        raise ValueError("Не удалось получить данные о курсе валют..")
+        raise ValueError("Не удалось получить данные о курсе валют.")
 
 # Генерация клавиатуры для выбора валюты
-def generate_currency_keyboard():
+def generate_currency_keyboard(user_id=None):
     markup = types.InlineKeyboardMarkup(row_width=4)
-    currencies = ["USD", "EUR", "GBP", "BYN", "RUB", "CNY", "JPY", "AUD"]
+    default_currencies = ["USD", "EUR", "TRY", "BYN", "RUB", "CNY", "JPY", "PLN"]
+    user_specific_currencies = user_currencies.get(str(user_id), [])
+    currencies = list(set(default_currencies + user_specific_currencies))
     buttons = [types.InlineKeyboardButton(text=cur, callback_data=cur) for cur in currencies]
     markup.add(*buttons)
     return markup
 
 # Обработчик команды для конвертации валюты
-# Команды менюшки_0
-# Конвертация любых валют
 @bot.message_handler(commands=["cvt"])
 def currency_conversion(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard())
-
+    bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard(message.from_user.id))
 @bot.callback_query_handler(func=lambda call: True)
 def handle_currency_selection(call: types.CallbackQuery):
     from_currency = call.data
-    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации в формате: 100 {from_currency} TO EUR")
+    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации в формате: 100 {from_currency} TO EUR или введите другую валюту:")
     bot.register_next_step_handler(msg, process_amount_step, from_currency)
 
 # Обработка ввода суммы и валюты для конвертации
-# Обработка ввода суммы и валюты для конвертации
 def process_amount_step(message: types.Message, from_currency: str):
     try:
+        if message.text.strip().lower() == 'exit':
+            bot.send_message(chat_id=message.chat.id, text="Операция отменена.")
+            return
+
         match = re.match(r"(\d+(?:\.\d+)?)\s+" + re.escape(from_currency) + r"\s+TO\s+(\w+)", message.text, re.IGNORECASE)
         if match:
             amount_str, to_currency = match.groups()
@@ -77,13 +98,16 @@ def process_amount_step(message: types.Message, from_currency: str):
             )
             bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
         else:
-            raise ValueError("Invalid input format")
+            raise ValueError("Неправильный формат ввода")
     except ValueError as e:
-        bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: 100 {from_currency} TO EUR")
-        bot.register_next_step_handler(message, process_amount_step, from_currency)
+        if "Неподдерживаемая валюта" in str(e):
+            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, вы также можете выбрать другую валюту как: | 100 {from_currency} TO ""ваша валюта"" | или 'exit' для выхода:")
+        else:
+            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, вы также можете выбрать другую валюту как: | 100 {from_currency} TO ""ваша валюта"" | или 'exit' для выхода:")
+        bot.register_next_step_handler(msg, process_amount_step, from_currency)
     except Exception as e:
-        bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова.")
-        bot.register_next_step_handler(message, process_amount_step, from_currency)
+        msg = bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова или введите 'exit' для выхода.")
+        bot.register_next_step_handler(msg, process_amount_step, from_currency)
 
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
@@ -236,7 +260,35 @@ def convert_usd_to_bel_rub(message: types.Message):
     except ValueError as e:
         bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
 
+# Команды менюшки_16
+# Обработчик команды set_my_currency, чтобы пользователь мог добавить свою валюту
+@bot.message_handler(commands=["set_my_currency"])
+def handle_set_my_currency(message: types.Message):
+    msg = bot.send_message(chat_id=message.chat.id, text="Введите код валюты, которую хотите добавить или введите 'exit' для выхода:")
+    bot.register_next_step_handler(msg, process_currency_code)
 
+def process_currency_code(message: types.Message):
+    user_id = str(message.from_user.id)
+    currency_code = message.text.strip().upper()
+
+    if currency_code.lower() == 'exit':
+        bot.send_message(chat_id=message.chat.id, text="Операция отменена.")
+        return
+
+    if not currency_code_pattern.match(currency_code):
+        msg = bot.send_message(chat_id=message.chat.id, text="Некорректный код валюты. Пожалуйста, введите трехбуквенный код валюты или введите 'exit' для выхода.")
+        bot.register_next_step_handler(msg, process_currency_code)
+        return
+
+    if user_id not in user_currencies:
+        user_currencies[user_id] = []
+
+    if currency_code not in user_currencies[user_id]:
+        user_currencies[user_id].append(currency_code)
+        save_user_currencies(user_currencies)
+        bot.send_message(chat_id=message.chat.id, text=f"Валюта {currency_code} успешно добавлена!")
+    else:
+        bot.send_message(chat_id=message.chat.id, text=f"Валюта {currency_code} уже была добавлена ранее.")
 #----------------------------------------------------------------------------
 
 
@@ -296,6 +348,9 @@ def send_echo_message(message: types.Message):
 
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
-    print('environ', os.environ)
+    bot.set_my_commands(default_commands)
     bot.infinity_polling(skip_pending=True)
+
+
+
 
