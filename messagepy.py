@@ -1,4 +1,4 @@
-from telebot import formatting
+from telebot import formatting, types
 
 UNKNOWN_JOKES = [
     ("Завтра буду спать до 12 дня.\n(Запись понравилась 15 газонокосильщикам)"),

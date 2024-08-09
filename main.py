@@ -62,7 +62,7 @@ def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> flo
 # Генерация клавиатуры для выбора валюты
 def generate_currency_keyboard(user_id=None):
     markup = types.InlineKeyboardMarkup(row_width=4)
-    default_currencies = ["USD", "EUR", "TRY", "BYN", "RUB", "CNY", "JPY", "PLN"]
+    default_currencies = ["USD", "EUR", "TRY", "BYN", "RUB", "PLN"]
     user_specific_currencies = user_currencies.get(str(user_id), [])
     currencies = list(set(default_currencies + user_specific_currencies))
     buttons = [types.InlineKeyboardButton(text=cur, callback_data=cur) for cur in currencies]
@@ -73,6 +73,7 @@ def generate_currency_keyboard(user_id=None):
 @bot.message_handler(commands=["cvt"])
 def currency_conversion(message: types.Message):
     bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard(message.from_user.id))
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_currency_selection(call: types.CallbackQuery):
     from_currency = call.data
@@ -101,12 +102,63 @@ def process_amount_step(message: types.Message, from_currency: str):
             raise ValueError(" ")
     except ValueError as e:
         if "Неподдерживаемая валюта" in str(e):
-            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, вы также можете выбрать другую валюту как: | 100 {from_currency} TO ""ваша валюта"" | или 'exit' для выхода:")
+            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, вы также можете выбрать другую валюту как: | 100 {from_currency} TO 'ваша валюта' | или 'exit' для выхода:")
         else:
             msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Похоже вы используете неподдерживаемую валюту, завершите операцию 'exit' и попробуйте снова:")
         bot.register_next_step_handler(msg, process_amount_step, from_currency)
     except Exception as e:
         msg = bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова или введите 'exit' для выхода.")
+
+# Обработчик inline-запросов для конвертации валют
+@bot.inline_handler(func=lambda query: query.query.strip().isdigit())
+def handle_convert_inline_query(query: types.InlineQuery):
+    try:
+        # Получаем сумму из запроса
+        amount = float(query.query.strip())
+
+        # Устанавливаем валюту по умолчанию
+        from_currency = "USD"  # можно поменять на вашу локальную валюту
+
+        # Устанавливаем целевые валюты для конвертации
+        target_currencies = ["EUR", "TRY", "BYN", "RUB", "PLN"]  # добавьте нужные вам валюты
+
+        # Список результатов для ответа
+        results = []
+
+        for to_currency in target_currencies:
+            # Получаем курс обмена
+            exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency)
+            converted_amount = amount * exchange_rate
+
+            # Создаем описание результата
+            result_text = (
+                f"{formatting.hcode(str(amount))} {formatting.hcode(from_currency)} = "
+                f"{formatting.hcode(f'{converted_amount:.2f}')} {formatting.hcode(to_currency)}"
+            )
+
+            # Создаем результат для inline запроса
+            result = types.InlineQueryResultArticle(
+                id=to_currency,
+                title=f"{amount} {from_currency} в {to_currency}",
+                input_message_content=types.InputTextMessageContent(
+                    message_text=result_text,
+                    parse_mode="HTML"
+                ),
+                description=result_text
+            )
+
+            # Добавляем результат в список
+            results.append(result)
+
+        # Отправляем результаты пользователю
+        bot.answer_inline_query(query.id, results, cache_time=5)
+
+    except Exception as e:
+        # В случае ошибки, выводим пустой результат или сообщение об ошибке
+        bot.answer_inline_query(query.id, results=[], cache_time=5)
+        print(f"Ошибка в обработке inline запроса: {e}")
+
+
 
 #Для прогноза погоды в реальном времени
 def get_weather(city: str, api_key: str) -> str:
@@ -129,40 +181,96 @@ def get_weather(city: str, api_key: str) -> str:
     else:
         return "Не удалось получить данные о погоде."
 
-
-#Команды менюшки_1
+# Команды менюшки_1
 @bot.message_handler(commands=["joke"])
 def send_random_joke(message: types.Message):
     bot.send_message(message.chat.id, random.choice(messagepy.UNKNOWN_JOKES))
-    
-#Команды менюшки_2
+
+
+# Команды менюшки_2
 @bot.message_handler(commands=["start"])
 def handle_command_start(message: types.Message):
     bot.send_message(message.chat.id, messagepy.start_message)
 
-#Команды менюшки_3
+
+# Команды менюшки_3
 @bot.message_handler(commands=["help"])
 def handle_command_help(message: types.Message):
     bot.send_message(message.chat.id, messagepy.help_message)
+
 
 # Команды менюшки_4
 @bot.message_handler(commands=["wolf"])
 def send_wolf_photo(message: types.Message):
     bot.send_photo(message.chat.id, photo=config.WOLF_photo, reply_to_message_id=message.id)
 
-#Команды менюшки_5
-#Отправка пользователю фото в виде файла
+
+# Команды менюшки_5
+# Отправка пользователю фото в виде файла
 @bot.message_handler(commands=["sunrise_file"])
 def send_sunrise_photo_from_disk(message: types.Message):
     photo_file = types.InputFile('pics/sunrise-pic.jpg')
     msg = bot.send_photo(message.chat.id, photo=photo_file)
 
-#Команды менюшки_6
-#Отправка пользователю фото по id картинки
-@bot.message_handler(commands=["sunrise_by_id"])
-def send_sunrise_picture_by_file_id(message: types.Message):
-    bot.send_photo(message.chat.id, photo=config.SUNRISE_PIC_FILE_ID)
 
+# Команды менюшки_6
+# Отправка пользователю фото по id картинки
+@bot.message_handler(commands=["sunrise_id"])
+def send_sunrise_photo_by_id(message: types.Message):
+    photo_id = "AgACAgIAAxkBAAMrZFFg2CeNwZZMS-...HhVLsd6Y-LyAAgvM"
+    bot.send_photo(message.chat.id, photo=photo_id)
+
+#---------------------------------------------------------------------
+# Бот для работы с фото и аудио файлами
+@bot.message_handler(content_types=["photo", "audio"])
+def echo_photo_or_audio(message: types.Message):
+    if message.content_type == "photo":
+        bot.reply_to(message, f"Фото {message.photo[-1].file_id} добавлено успешно!")
+    elif message.content_type == "audio":
+        bot.reply_to(message, f"Аудио {message.audio.file_id} добавлено успешно!")
+
+
+# Ошибка при работе бота
+@bot.message_handler(commands=["error"])
+def handle_error(message: types.Message):
+    try:
+        raise ValueError("Пример ошибки")
+    except ValueError as e:
+        bot.reply_to(message, f"Произошла ошибка: {str(e)}")
+
+
+# Ошибка при работе конвертации валют
+@bot.message_handler(commands=["error_rate"])
+def handle_error_rate(message: types.Message):
+    try:
+        exchange_rate = get_exchange_rate("Неверный ключ", "USD", "EUR")
+    except ValueError as e:
+        bot.reply_to(message, f"Произошла ошибка: {str(e)}")
+
+
+# Конвертация валют при inline-запросе
+@bot.inline_handler(func=lambda query: True)
+def inline_query_conversion(query: types.InlineQuery):
+    try:
+        input_text = query.query.strip()
+        if input_text.lower() == "exchange":
+            # Логика обработки конвертации валют
+            # Например, можно предложить пользователю выбрать валюту через инлайн-клавиатуру
+            markup = types.InlineKeyboardMarkup()
+            # Добавляем кнопки для популярных валют
+            for cur in ["USD", "EUR", "TRY", "BYN", "RUB", "PLN"]:
+                markup.add(types.InlineKeyboardButton(text=cur, callback_data=f"from:{cur}"))
+            bot.answer_inline_query(query.id, [types.InlineQueryResultArticle(
+                id="choose_currency",
+                title="Выберите валюту",
+                input_message_content=types.InputTextMessageContent(
+                    message_text="Выберите валюту из предложенного списка."),
+                reply_markup=markup
+            )])
+
+    except Exception as e:
+        bot.answer_inline_query(query.id, results=[])
+#---------------------------------------------------------------------
 #Команды менюшки_7
 #Отправка пользователю фото как документ
 @bot.message_handler(commands=["sunrise_doc"])
@@ -352,6 +460,7 @@ def send_echo_message(message: types.Message):
     # elif 'Милан' in text.lower():
     #     text = 'Создатель'
     bot.send_message(chat_id=message.chat.id, text=text, entities=message.entities)
+
 
 
 #Проверка, для запуска именно этого файла
