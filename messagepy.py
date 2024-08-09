@@ -1,4 +1,6 @@
 from telebot import formatting, types
+from telebot import types
+
 
 UNKNOWN_JOKES = [
     ("Завтра буду спать до 12 дня.\n(Запись понравилась 15 газонокосильщикам)"),
@@ -29,7 +31,27 @@ cvt_how_to = formatting.format_text(formatting.hcode("/usd_to_bel_rub 1"))
 
 invalid_argument_text = "Неправильный аргумент: "
 
+from telebot import types
 
+
+def format_conversion_result(amount, from_currency, to_currency, converted_amount):
+    return (
+        f"{amount} {from_currency} = {converted_amount:.2f} {to_currency}"
+    )
+
+
+def create_inline_query_result(amount, from_currency, to_currency, converted_amount):
+    result_text = format_conversion_result(amount, from_currency, to_currency, converted_amount)
+
+    return types.InlineQueryResultArticle(
+        id=to_currency,
+        title=f"{amount} {from_currency} в {to_currency}",
+        input_message_content=types.InputTextMessageContent(
+            message_text=result_text,
+            parse_mode="HTML"
+        ),
+        description=result_text
+    )
 
 def format_usd_to_bel_rub_message(usd_amount, bel_rub_amount):
     return formatting.format_text(formatting.hcode(f"{usd_amount:,.2f}"), "USD это примерно", formatting.hcode(f"{bel_rub_amount:,.2f}"), "BEL RUB ", separator=" ")

@@ -10,6 +10,9 @@ from telebot import util
 from telebot import types
 #добавляем команды
 from commands import default_commands
+#Кэширование информации о доступных валютах
+from functools import lru_cache
+from datetime import datetime, timedelta
 
 import os
 import requests
@@ -20,6 +23,36 @@ import my_filters
 import currencies
 import re
 import json
+
+
+#для кэширования данных
+#--------------------------------------------------------------------------------------------
+# Время жизни кэша
+CACHE_EXPIRATION_DAYS = 1
+
+# Декоратор для сброса кэша
+def cache_with_expiration(expiration_days: int):
+    def decorator(func):
+        cache = lru_cache(maxsize=128)(func)
+        cache.expiration_date = datetime.now() + timedelta(days=expiration_days)
+
+        def wrapped_func(*args, **kwargs):
+            if datetime.now() > cache.expiration_date:
+                cache.cache_clear()
+                cache.expiration_date = datetime.now() + timedelta(days=expiration_days)
+            return cache(*args, **kwargs)
+
+        return wrapped_func
+
+    return decorator
+
+
+@cache_with_expiration(CACHE_EXPIRATION_DAYS)
+def get_available_currencies(api_key):
+    # Функция для получения списка доступных валют
+    # Здесь должен быть запрос к API или другим источникам данных
+    return ["USD", "EUR", "GBP", "JPY", "RUB", "IDR", "INR"]
+
 
 #Создание файла для хранения пользовательских валют:
 #--------------------------------------------------------------------------------------------
@@ -59,27 +92,60 @@ def get_exchange_rate(api_key: str, from_currency: str, to_currency: str) -> flo
     else:
         raise ValueError("Не удалось получить данные о курсе валют.")
 
+
 # Генерация клавиатуры для выбора валюты
-def generate_currency_keyboard(user_id=None):
+def generate_currency_keyboard(user_id=None, selected_currency=None):
     markup = types.InlineKeyboardMarkup(row_width=4)
     default_currencies = ["USD", "EUR", "TRY", "BYN", "RUB", "PLN"]
     user_specific_currencies = user_currencies.get(str(user_id), [])
     currencies = list(set(default_currencies + user_specific_currencies))
-    buttons = [types.InlineKeyboardButton(text=cur, callback_data=cur) for cur in currencies]
+
+    buttons = [types.InlineKeyboardButton(text=cur, callback_data=f"select_currency:{cur}") for cur in currencies]
     markup.add(*buttons)
+
+    # Если выбрана валюта, добавьте кнопку для сброса выбора
+    if selected_currency:
+        reset_button = types.InlineKeyboardButton(text="Сбросить выбор", callback_data="reset_currency")
+        markup.add(reset_button)
+
     return markup
 
 # Обработчик команды для конвертации валюты
 @bot.message_handler(commands=["cvt"])
 def currency_conversion(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text="Выберите валюту, из которой хотите конвертировать:", reply_markup=generate_currency_keyboard(message.from_user.id))
+    selected_currency = user_currencies.get(str(message.from_user.id), None)
+    bot.send_message(chat_id=message.chat.id,
+                     text="Выберите валюту, из которой хотите конвертировать:",
+                     reply_markup=generate_currency_keyboard(message.from_user.id, selected_currency))
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_currency_selection(call: types.CallbackQuery):
-    from_currency = call.data
-    msg = bot.send_message(chat_id=call.message.chat.id, text=f"Вы выбрали {from_currency}. Введите сумму и валюту для конвертации в формате: 100 {from_currency} TO EUR или введите другую валюту:")
-    bot.register_next_step_handler(msg, process_amount_step, from_currency)
+    callback_data = call.data
+    user_id = call.from_user.id
 
+    if callback_data.startswith("select_currency:"):
+        # Обработка выбора валюты
+        selected_currency = callback_data.split(":")[1]
+        user_currencies[str(user_id)] = selected_currency
+        save_user_currencies(user_currencies)
+
+        msg = bot.send_message(
+            chat_id=call.message.chat.id,
+            text=f"Вы выбрали {selected_currency}. Введите сумму и валюту для конвертации в формате: 100 {selected_currency} TO EUR или введите другую валюту:",
+        )
+        bot.register_next_step_handler(msg, process_amount_step, selected_currency)
+
+    elif callback_data == "reset_currency":
+        # Сброс выбора валюты
+        if str(user_id) in user_currencies:
+            del user_currencies[str(user_id)]
+            save_user_currencies(user_currencies)
+        bot.send_message(
+            chat_id=call.message.chat.id,
+            text="Выбор валюты сброшен. Выберите валюту для конвертации снова.",
+            reply_markup=generate_currency_keyboard(user_id)
+        )
 # Обработка ввода суммы и валюты для конвертации
 def process_amount_step(message: types.Message, from_currency: str):
     try:
@@ -110,33 +176,28 @@ def process_amount_step(message: types.Message, from_currency: str):
         msg = bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова или введите 'exit' для выхода.")
 
 # Обработчик inline-запросов для конвертации валют
-@bot.inline_handler(func=lambda query: query.query.strip().isdigit())
+@bot.inline_handler(func=lambda query: query.query.strip().isdigit() or query.query.lower().startswith("exchange"))
 def handle_convert_inline_query(query: types.InlineQuery):
     try:
-        # Получаем сумму из запроса
-        amount = float(query.query.strip())
+        user_id = query.from_user.id
+        amount_str = query.query.strip()
+        amount = float(amount_str) if amount_str.isdigit() else 0
 
-        # Устанавливаем валюту по умолчанию
-        from_currency = "USD"  # можно поменять на вашу локальную валюту
+        from_currency = user_currencies.get(str(user_id), "USD")  # Используйте валюту пользователя или по умолчанию USD
 
-        # Устанавливаем целевые валюты для конвертации
-        target_currencies = ["EUR", "TRY", "BYN", "RUB", "PLN"]  # добавьте нужные вам валюты
+        target_currencies = ["USD", "EUR", "TRY", "BYN", "RUB", "PLN"]  # Добавьте нужные вам валюты
 
-        # Список результатов для ответа
         results = []
 
         for to_currency in target_currencies:
-            # Получаем курс обмена
             exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, from_currency, to_currency)
             converted_amount = amount * exchange_rate
 
-            # Создаем описание результата
             result_text = (
                 f"{formatting.hcode(str(amount))} {formatting.hcode(from_currency)} = "
                 f"{formatting.hcode(f'{converted_amount:.2f}')} {formatting.hcode(to_currency)}"
             )
 
-            # Создаем результат для inline запроса
             result = types.InlineQueryResultArticle(
                 id=to_currency,
                 title=f"{amount} {from_currency} в {to_currency}",
@@ -147,14 +208,11 @@ def handle_convert_inline_query(query: types.InlineQuery):
                 description=result_text
             )
 
-            # Добавляем результат в список
             results.append(result)
 
-        # Отправляем результаты пользователю
         bot.answer_inline_query(query.id, results, cache_time=5)
 
     except Exception as e:
-        # В случае ошибки, выводим пустой результат или сообщение об ошибке
         bot.answer_inline_query(query.id, results=[], cache_time=5)
         print(f"Ошибка в обработке inline запроса: {e}")
 
