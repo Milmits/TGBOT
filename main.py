@@ -1,8 +1,8 @@
 #библиотека для работы с tg ботом
-from telebot import TeleBot, types, util, formatting
+from telebot import TeleBot
 from telebot import custom_filters
 #библиотека input, output для работы с файлами
-from io import StringIO, BytesIO
+from io import StringIO
 #библиотека для форматирования текста
 from telebot import formatting
 #библиотеки для конвертации валют
@@ -19,8 +19,7 @@ import requests
 import config
 import random
 import messagepy
-import my_filters
-import currencies
+from custom_filters import my_filters
 import re
 import json
 
@@ -100,12 +99,16 @@ def generate_currency_keyboard(user_id=None, selected_currency=None):
     user_specific_currencies = user_currencies.get(str(user_id), [])
     currencies = list(set(default_currencies + user_specific_currencies))
 
-    buttons = [types.InlineKeyboardButton(text=cur, callback_data=f"select_currency:{cur}") for cur in currencies]
+    buttons = [types.InlineKeyboardButton(
+        text=cur, callback_data=f"select_currency:{cur}") for cur in currencies]
     markup.add(*buttons)
 
     # Если выбрана валюта, добавьте кнопку для сброса выбора
     if selected_currency:
-        reset_button = types.InlineKeyboardButton(text="Сбросить выбор", callback_data="reset_currency")
+        reset_button = types.InlineKeyboardButton(
+            text="Сбросить выбор",
+            callback_data="reset_currency"
+        )
         markup.add(reset_button)
 
     return markup
@@ -114,9 +117,11 @@ def generate_currency_keyboard(user_id=None, selected_currency=None):
 @bot.message_handler(commands=["cvt"])
 def currency_conversion(message: types.Message):
     selected_currency = user_currencies.get(str(message.from_user.id), None)
-    bot.send_message(chat_id=message.chat.id,
-                     text="Выберите валюту, из которой хотите конвертировать:",
-                     reply_markup=generate_currency_keyboard(message.from_user.id, selected_currency))
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Выберите валюту, из которой хотите конвертировать:",
+        reply_markup=generate_currency_keyboard(message.from_user.id, selected_currency)
+    )
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -163,17 +168,31 @@ def process_amount_step(message: types.Message, from_currency: str):
                 f"{formatting.hcode(str(amount))} {formatting.hcode(from_currency)} = "
                 f"{formatting.hcode(f'{converted_amount:.2f}')} {formatting.hcode(to_currency.upper())}"
             )
-            bot.send_message(chat_id=message.chat.id, text=result_text, parse_mode="HTML")
+            bot.send_message(
+                chat_id=message.chat.id,
+                text=result_text,
+                parse_mode="HTML"
+            )
         else:
             raise ValueError(" ")
     except ValueError as e:
         if "Неподдерживаемая валюта" in str(e):
-            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, вы также можете выбрать другую валюту как: | 100 {from_currency} TO 'ваша валюта' | или 'exit' для выхода:")
+            msg = bot.send_message(
+                chat_id=message.chat.id,
+                text=f"Ошибка: {formatting.hcode(str(e))}. Пожалуйста, введите сумму и валюту для конвертации снова в формате: | 100 {from_currency} TO EUR |, "
+                     f"вы также можете выбрать другую валюту как: | 100 {from_currency} TO 'ваша валюта' | или 'exit' для выхода:"
+            )
         else:
-            msg = bot.send_message(chat_id=message.chat.id, text=f"Ошибка: {formatting.hcode(str(e))}. Похоже вы используете неподдерживаемую валюту, завершите операцию 'exit' и попробуйте снова:")
+            msg = bot.send_message(
+                chat_id=message.chat.id,
+                text=f"Ошибка: {formatting.hcode(str(e))}. Похоже вы используете неподдерживаемую валюту, "
+                     f"завершите операцию 'exit' и попробуйте снова:"
+            )
         bot.register_next_step_handler(msg, process_amount_step, from_currency)
     except Exception as e:
-        msg = bot.send_message(chat_id=message.chat.id, text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова или введите 'exit' для выхода.")
+        msg = bot.send_message(
+            chat_id=message.chat.id,
+            text=f"Произошла ошибка: {formatting.hcode(str(e))}. Пожалуйста, попробуйте снова или введите 'exit' для выхода.")
 
 # Обработчик inline-запросов для конвертации валют
 @bot.inline_handler(func=lambda query: query.query.strip().isdigit() or query.query.lower().startswith("exchange"))
@@ -260,7 +279,9 @@ def handle_command_help(message: types.Message):
 # Команды менюшки_4
 @bot.message_handler(commands=["wolf"])
 def send_wolf_photo(message: types.Message):
-    bot.send_photo(message.chat.id, photo=config.WOLF_photo, reply_to_message_id=message.id)
+    bot.send_photo(message.chat.id,
+                   photo=config.WOLF_photo,
+                   reply_to_message_id=message.id)
 
 
 # Команды менюшки_5
@@ -301,7 +322,11 @@ def handle_error(message: types.Message):
 @bot.message_handler(commands=["error_rate"])
 def handle_error_rate(message: types.Message):
     try:
-        exchange_rate = get_exchange_rate("Неверный ключ", "USD", "EUR")
+        exchange_rate = get_exchange_rate(
+            "Неверный ключ",
+            "USD",
+            "EUR"
+        )
     except ValueError as e:
         bot.reply_to(message, f"Произошла ошибка: {str(e)}")
 
@@ -359,7 +384,11 @@ def send_text_doc_from_memory(message: types.Message):
     file.write(str(random.randint(1, 1000)))
     file.seek(0)
     file_text_doc = types.InputFile(file)
-    bot.send_document(chat_id=message.chat.id, document=file_text_doc, visible_file_name="yor_file_from_pc.txt")
+    bot.send_document(
+        chat_id=message.chat.id,
+        document=file_text_doc,
+        visible_file_name="yor_file_from_pc.txt"
+    )
 
 #Реакция на событие - по опорному слову выдаётся актуальная погода в городе Минск
 @bot.message_handler(text_contains='погода')
@@ -396,7 +425,11 @@ def handle_not_admin_secret(message: types.Message):
 # Изменяет шрифт текста
 @bot.message_handler(commands=["md"])
 def send_markdown_message(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text=messagepy.markdown_text, parse_mode="MarkdownV2")
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.markdown_text,
+        parse_mode="MarkdownV2"
+    )
 
 # Команды менюшки_15
 # Конвертация валют
@@ -404,7 +437,11 @@ def send_markdown_message(message: types.Message):
 def convert_usd_to_bel_rub(message: types.Message):
     arguments = util.extract_arguments(message.text)
     if not arguments:
-        bot.send_message(chat_id=message.chat.id, text=messagepy.convert_usd_to_bel_rub_how_to, parse_mode="HTML")
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=messagepy.convert_usd_to_bel_rub_how_to,
+            parse_mode="HTML"
+        )
         return
 
     try:
@@ -413,17 +450,29 @@ def convert_usd_to_bel_rub(message: types.Message):
         text = formatting.format_text(
             formatting.format_text(messagepy.invalid_argument_text, formatting.hcode(arguments), separator=""),
             messagepy.convert_usd_to_bel_rub_how_to)
-        bot.send_message(chat_id=message.chat.id, text=text, parse_mode="HTML")
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=text,
+            parse_mode="HTML"
+        )
         return
 
     try:
         exchange_rate = get_exchange_rate(config.EXCHANGERATE_API_KEY, "USD", "BYN")
         bel_rub_amount = usd_amount * exchange_rate
-        bot.send_message(chat_id=message.chat.id, text=messagepy.format_usd_to_bel_rub_message(usd_amount=usd_amount,
-                                                                                               bel_rub_amount=bel_rub_amount),
-                         parse_mode="HTML")
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=messagepy.format_usd_to_bel_rub_message(
+                usd_amount=usd_amount,
+                bel_rub_amount=bel_rub_amount
+            ),
+            parse_mode="HTML")
     except ValueError as e:
-        bot.send_message(chat_id=message.chat.id, text=str(e), parse_mode="HTML")
+        bot.send_message(
+            chat_id=message.chat.id,
+            text=str(e),
+            parse_mode="HTML"
+        )
 
 # Команды менюшки_16
 # Обработчик команды set_my_currency, чтобы пользователь мог добавить свою валюту
@@ -469,7 +518,12 @@ def process_delete_my_currency(message: types.Message):
 #Реакция на событие - отправка стикера
 @bot.message_handler(content_types=["sticker"])
 def handle_sticker(message: types.Message):
-    bot.send_message(message.chat.id, text=formatting.mbold("Классный стикер!"), parse_mode="MarkdownV2", reply_to_message_id=message.id)
+    bot.send_message(
+        message.chat.id,
+        text=formatting.mbold("Классный стикер!"),
+        parse_mode="MarkdownV2",
+        reply_to_message_id=message.id
+    )
 
 
 #Реакция на событие - реакция на подпись под картинкой "волк" (1)
@@ -479,7 +533,11 @@ def is_wolf_in_caption(message: types.Message):
 #Реакция на событие - реакция на подпись под картинкой "волк" (2)
 @bot.message_handler(content_types=["photo"], func=is_wolf_in_caption)
 def handle_photo_with_wolf_caption(message: types.Message):
-    bot.send_message(chat_id=message.chat.id, text='Nice photo!', reply_to_message_id=message.id)
+    bot.send_message(
+        chat_id=message.chat.id,
+        text='Nice photo!',
+        reply_to_message_id=message.id
+    )
 
 # Реакция на событие - дублируем последнее фото без подписи
 @bot.message_handler(content_types=["photo"])
@@ -488,12 +546,21 @@ def handle_photo(message: types.Message):
     caption_text = 'Классное фото!'
     if message.caption:
         caption_text += "\nПодпись:\n" + message.caption
-    bot.send_photo(message.chat.id, photo=photo_file_id, reply_to_message_id=message.id, caption=caption_text)
+    bot.send_photo(
+        message.chat.id,
+        photo=photo_file_id,
+        reply_to_message_id=message.id,
+        caption=caption_text
+    )
 
 # Реакция на событие - голосовое сообщение
 @bot.message_handler(content_types=["voice"])
 def handle_voice(message: types.Message):
-    bot.send_message(message.chat.id, "К сожалению я не могу прослушать что вы сказали :(", reply_to_message_id=message.id)
+    bot.send_message(
+        message.chat.id,
+        "К сожалению я не могу прослушать что вы сказали :(",
+        reply_to_message_id=message.id
+    )
 
 # Копирование и отсылка сообщения в том же формате,
 # в котором нам его отправил пользователь
@@ -503,7 +570,11 @@ def copy_incoming_message(message: types.Message):
     #     print('message entities:')
     #     for entity in message.entities:
     #         print(entity)
-    bot.copy_message(chat_id=message.chat.id, from_chat_id=message.chat.id, message_id=message.id)
+    bot.copy_message(
+        chat_id=message.chat.id,
+        from_chat_id=message.chat.id,
+        message_id=message.id
+    )
 
 # Реакция на событие - ответ если определенные слова есть в сообщении пользователя
 @bot.message_handler()
@@ -517,7 +588,11 @@ def send_echo_message(message: types.Message):
     #     text = 'До новых встреч!'
     # elif 'Милан' in text.lower():
     #     text = 'Создатель'
-    bot.send_message(chat_id=message.chat.id, text=text, entities=message.entities)
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        entities=message.entities
+    )
 
 
 
