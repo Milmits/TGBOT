@@ -23,6 +23,11 @@ from custom_filters import my_filters
 import re
 import json
 
+from add_commands.some_commands import (
+    answer_command_start,
+    answer_help_command,
+    give_random_joke,
+)
 
 #для кэширования данных
 #--------------------------------------------------------------------------------------------
@@ -261,19 +266,19 @@ def get_weather(city: str, api_key: str) -> str:
 # Команды менюшки_1
 @bot.message_handler(commands=["joke"])
 def send_random_joke(message: types.Message):
-    bot.send_message(message.chat.id, random.choice(messagepy.UNKNOWN_JOKES))
+    give_random_joke(message, bot)
 
 
 # Команды менюшки_2
 @bot.message_handler(commands=["start"])
 def handle_command_start(message: types.Message):
-    bot.send_message(message.chat.id, messagepy.start_message)
+    answer_command_start(message, bot)
 
 
 # Команды менюшки_3
 @bot.message_handler(commands=["help"])
 def handle_command_help(message: types.Message):
-    bot.send_message(message.chat.id, messagepy.help_message)
+    answer_help_command(message, bot)
 
 
 # Команды менюшки_4
