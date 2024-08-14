@@ -8,11 +8,15 @@ from telebot import formatting
 #библиотеки для конвертации валют
 from telebot import util
 from telebot import types
+from telebot.handler_backends import StatesGroup, State
+
 #добавляем команды
 from commands import default_commands
 #Кэширование информации о доступных валютах
 from functools import lru_cache
 from datetime import datetime, timedelta
+#Для опроса
+from enum import StrEnum
 
 import os
 import requests
@@ -29,6 +33,180 @@ from add_commands.some_commands import (
     give_random_joke,
 )
 
+bot = TeleBot(config.BOT_TOKEN)
+bot.add_custom_filter(custom_filters.TextMatchFilter())
+bot.add_custom_filter(custom_filters.TextContainsFilter())
+bot.add_custom_filter(my_filters.IsUserBotAdmin())
+bot.add_custom_filter(my_filters.ContainsWordFilter())
+bot.add_custom_filter(custom_filters.StateFilter(bot))
+
+#--------33333333333333333333333333333333333333333333333
+#опрос
+#шаги опроса
+#-full_name
+#-user_email
+#-favorite_number
+
+class OprosStates(StatesGroup):
+    full_name = State()
+    user_email = State()
+    email_newsletter = State()
+
+def is_valid_email(text: str) -> bool:
+    return (
+        "@" in text
+        and
+        "." in text
+    )
+def is_valid_email_message_text(message: types.Message) -> bool:
+    return message.text and is_valid_email(message.text)
+
+
+@bot.message_handler(commands=["opros"])
+def handle_commands_opros_start(message: types.Message):
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=OprosStates.full_name,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_welcome_what_is_full_name,
+    )
+
+@bot.message_handler(
+    state=OprosStates.full_name,
+    content_types=["text"],
+)
+def handle_user_full_name(message: types.Message):
+    full_name = message.text
+    bot.add_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        full_name=full_name,
+    )
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=OprosStates.user_email,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_full_name_ok_and_ask_for_email.format(
+            full_name=formatting.hbold(full_name),
+        ),
+        parse_mode="HTML",
+    )
+
+@bot.message_handler(
+    state=OprosStates.full_name,
+    content_types=util.content_type_media,
+)
+def handle_user_full_name_not_text(message: types.Message):
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_full_name_not_text,
+    )
+
+@bot.message_handler(
+    state=OprosStates.user_email,
+    content_types=["text"],
+    func=is_valid_email_message_text,
+)
+def handle_user_email_ok(message: types.Message):
+    bot.add_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        user_email = message.text,
+    )
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=OprosStates.email_newsletter,
+    )
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_email_is_ok,
+    )
+
+@bot.message_handler(
+    state=OprosStates.user_email,
+    content_types=util.content_type_media,
+)
+def handle_user_email_not_ok(message: types.Message):
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_email_not_ok,
+    )
+
+@bot.message_handler(
+    state=OprosStates.email_newsletter,
+    content_types=["text"],
+    text=custom_filters.TextFilter(
+        equals="да",
+        ignore_case=True,
+    )
+)
+@bot.message_handler(
+    state=OprosStates.email_newsletter,
+    content_types=["text"],
+    text=custom_filters.TextFilter(
+        equals="нет",
+        ignore_case=True,
+    )
+)
+def handle_newsletter_yes_or_no(message: types.Message):
+    with bot.retrieve_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+    ) as data:
+        #full_name = data["full_name"]
+        #user_email = data["user_email"]
+        full_name = data.pop("full_name", "-")
+        user_email = data.pop("user_email", "-@")
+
+    text = formatting.format_text(
+        "Спасибо, что прошли наш опрос!",
+        formatting.format_text(
+            "Ваше имя:",
+            formatting.hbold(full_name),
+            separator=" ",
+        ),
+        formatting.format_text(
+            "Ваша почта:",
+            formatting.hcode(user_email),
+            separator=" ",
+        ),
+        formatting.format_text(
+            "Подписка на рассылку:",
+            formatting.hitalic(message.text.title()),
+            separator=" ",
+        ),
+    )
+    # noinspection PyTypeChecker
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=0,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=text,
+        parse_mode="HTML",
+    )
+
+
+@bot.message_handler(
+    state=OprosStates.email_newsletter,
+    content_types=util.content_type_media,
+)
+def handle_email_newsletter_yes_or_no_not_ok(message: types.Message):
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_invalid_yes_or_no,
+    )
+#--------33333333333333333333333333333333333333333333333
 #для кэширования данных
 #--------------------------------------------------------------------------------------------
 # Время жизни кэша
@@ -75,12 +253,6 @@ def save_user_currencies(user_currencies):
 
 user_currencies = load_user_currencies()
 #--------------------------------------------------------------------------------------------
-
-bot = TeleBot(config.BOT_TOKEN)
-bot.add_custom_filter(custom_filters.TextMatchFilter())
-bot.add_custom_filter(custom_filters.TextContainsFilter())
-bot.add_custom_filter(my_filters.IsUserBotAdmin())
-bot.add_custom_filter(my_filters.ContainsWordFilter())
 
 
 #Для получения актуальной информации об конвертации валют
@@ -604,6 +776,8 @@ def send_echo_message(message: types.Message):
 #Проверка, для запуска именно этого файла
 if __name__ == "__main__":
     bot.enable_saving_states()
+    bot.enable_save_next_step_handlers(delay=2)
+    bot.load_next_step_handlers()
     bot.set_my_commands(default_commands)
     bot.infinity_polling(skip_pending=True)
 

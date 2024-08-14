@@ -17,6 +17,6 @@ default_commands = [
     BotCommand("md", 'Пометить текст'),
     BotCommand("usd_to_bel_rub", 'Конвертировать USD в BEL_RUB'),
     BotCommand("set_my_currency", 'Добавить валюту в меню'),
-    BotCommand("delete_my_currency", 'Удалить валюту в меню')
+    BotCommand("delete_my_currency", 'Удалить валюту в меню'),
+    BotCommand("opros", 'Опросник'),
 ]
-

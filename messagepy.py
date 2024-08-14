@@ -95,3 +95,34 @@ def send_markdown_message(message: types.Message):
 >Expandable block quotation continued
 >The last line of the expandable block quotation with the expandability mark||
 """
+
+
+#Опросник
+opros_message_welcome_what_is_full_name = formatting.format_text(
+    "Пожалуйтса представьтесь",
+    "Напишите ваше полное имя: Например - Иван Иванов",
+)
+
+opros_message_full_name_not_text = formatting.format_text(
+    "Это не текст, мы бы хотели узнать ваше имя",
+    "Пожалуйста укажите ваше настоящее имя",
+)
+
+opros_message_full_name_ok_and_ask_for_email = formatting.format_text(
+    "Добро пожаловать, {full_name}!",
+    "Пожалуйста отправьте ваш email, ",
+)
+
+opros_message_email_not_ok = formatting.format_text(
+    "Это не настоящий email",
+    "Пожалуйста укажите валидный",
+
+)
+
+opros_message_email_is_ok = formatting.format_text(
+    "Почту записали, можно подписать вас на рассылку?",
+)
+
+opros_message_invalid_yes_or_no = formatting.format_text(
+    "Не понимаю, пожалуйста укажите да или нет",
+)
