@@ -142,3 +142,18 @@ opros_message_invalid_yes_or_no = formatting.format_text(
 opros_message_cancelled = formatting.format_text(
     "Опрос отменен. Пройти заново: /opros",
 )
+
+random_message_text = formatting.format_text(
+    "Вот сообщение с клавиатурой с рандомом",
+)
+
+#00000000000000000000000000000000000000000000000000000000000000
+random_message_text = "Вот сообщение с клавиатурой с рандомом"
+
+# Обновляем help-сообщение
+help_message_text = (
+    "Доступные команды:\n"
+    "/start - Запуск бота\n"
+    "/dev_opros - Пройти опрос для программистов\n"
+    "/cancel - Отменить текущий опрос"
+)

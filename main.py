@@ -39,7 +39,262 @@ bot.add_custom_filter(custom_filters.TextContainsFilter())
 bot.add_custom_filter(my_filters.IsUserBotAdmin())
 bot.add_custom_filter(my_filters.ContainsWordFilter())
 bot.add_custom_filter(custom_filters.StateFilter(bot))
+#5348976777777777767676767676767676767676767676767676767676767676767
+class DevOprosStates(StatesGroup):
+    full_name = State()
+    favorite_language = State()
+    experience_years = State()
+    freelance_interest = State()
 
+
+def get_yes_or_no_kb():
+    keyboard = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    keyboard.add("да", "нет")
+    return keyboard
+
+
+yes_or_no_kb = get_yes_or_no_kb()
+
+cancel_kb = types.ReplyKeyboardMarkup(
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+cancel_kb.add("Отмена")
+
+
+@bot.message_handler(commands=["cancel"], state="*")
+@bot.message_handler(
+    text=custom_filters.TextFilter(equals="отмена", ignore_case=True), state="*"
+)
+def handle_cancel_opros(message: types.Message):
+    with bot.retrieve_data(
+            user_id=message.from_user.id,
+            chat_id=message.chat.id,
+    ) as data:
+        data.clear()
+
+    bot.set_state(user_id=message.from_user.id, chat_id=message.chat.id, state=0)
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Опрос отменен. Чтобы начать заново: /dev_opros",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
+
+
+@bot.message_handler(commands=["dev_opros"])
+def handle_dev_opros_start(message: types.Message):
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=DevOprosStates.full_name,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Добро пожаловать в опрос для программистов! Пожалуйста, укажите ваше полное имя.",
+        reply_markup=cancel_kb,
+    )
+
+
+@bot.message_handler(state=DevOprosStates.full_name, content_types=["text"])
+def handle_user_full_name(message: types.Message):
+    full_name = message.text
+    bot.add_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        full_name=full_name,
+    )
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=DevOprosStates.favorite_language,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=f"Приятно познакомиться, {full_name}! Какой ваш любимый язык программирования?",
+    )
+
+
+@bot.message_handler(state=DevOprosStates.favorite_language, content_types=["text"])
+def handle_user_favorite_language(message: types.Message):
+    favorite_language = message.text
+    bot.add_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        favorite_language=favorite_language,
+    )
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=DevOprosStates.experience_years,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=f"Сколько лет у вас опыта в программировании на {favorite_language}?",
+    )
+
+
+@bot.message_handler(state=DevOprosStates.experience_years, content_types=["text"])
+def handle_user_experience_years(message: types.Message):
+    experience_years = message.text
+    bot.add_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        experience_years=experience_years,
+    )
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=DevOprosStates.freelance_interest,
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Интересуетесь ли вы фрилансом?",
+        reply_markup=yes_or_no_kb,
+    )
+
+
+@bot.message_handler(state=DevOprosStates.freelance_interest, content_types=["text"])
+def handle_user_freelance_interest(message: types.Message):
+    freelance_interest = message.text
+    with bot.retrieve_data(user_id=message.from_user.id, chat_id=message.chat.id) as data:
+        full_name = data["full_name"]
+        favorite_language = data["favorite_language"]
+        experience_years = data["experience_years"]
+
+    text = (
+        f"Спасибо, {full_name}, что прошли опрос!\n"
+        f"Ваш любимый язык программирования: {favorite_language}\n"
+        f"Опыт в программировании: {experience_years} лет\n"
+        f"Интерес к фрилансу: {freelance_interest}"
+    )
+
+    kb = types.InlineKeyboardMarkup()
+    kb.add(
+        types.InlineKeyboardButton(text="Посетить сайт для фрилансеров", url="https://www.freelancer.com")
+    )
+
+    bot.send_message(chat_id=message.chat.id, text=text, reply_markup=kb)
+
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Опрос завершен.",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
+    bot.set_state(user_id=message.from_user.id, chat_id=message.chat.id, state=0)
+
+# Неожиданные случаи
+@bot.message_handler(state=DevOprosStates.full_name, content_types=util.content_type_media)
+@bot.message_handler(state=DevOprosStates.favorite_language, content_types=util.content_type_media)
+@bot.message_handler(state=DevOprosStates.experience_years, content_types=util.content_type_media)
+@bot.message_handler(state=DevOprosStates.freelance_interest, content_types=util.content_type_media)
+def handle_invalid_input(message: types.Message):
+    bot.send_message(
+        chat_id=message.chat.id,
+        text="Пожалуйста, отправьте текстовое сообщение.",
+    )
+
+
+@bot.message_handler(commands=['bot_start', 'bot_help'])
+def handle_start_help(message: types.Message):
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.help_message_text,
+    )
+
+#348957777777777777777777777777777777777777777777707777777777777770707000
+#--------44444444444444444444444444444444444444444444444444444444444444
+#клавиатура
+
+def create_message_keyboard():
+    kb = types.InlineKeyboardMarkup()
+    random_org_site_button = types.InlineKeyboardButton(
+        text="Random (org)",
+        url="https://www.random.org/",
+    )
+    ya_ru_site_button = types.InlineKeyboardButton(
+        text="yandex",
+        url="https://ya.ru/",
+    )
+    kb.add(random_org_site_button)
+    kb.add(ya_ru_site_button)
+    kb.row(
+        random_org_site_button,
+        ya_ru_site_button,
+    )
+
+    random_amount = random.randint(100, 500)
+    switch_inline = types.InlineKeyboardButton(
+        text=f"Конвертировать {random_amount}",
+        switch_inline_query=f"{random_amount}",
+    )
+    switch_inline_current_chat = types.InlineKeyboardButton(
+        text=f"Конвертировать {random_amount} PLN",
+        switch_inline_query_current_chat=f"{random_amount} PLN",
+    )
+
+    kb.add(switch_inline)
+    kb.add(switch_inline_current_chat)
+
+    random_number = random.randint(10, 50)
+    random_number_button = types.InlineKeyboardButton(
+        text=f"Число {random_number}",
+        callback_data=f"random-number:{random_number}",
+    )
+
+    another_random_number = random.randint(100, 400)
+    hidden_random_number_button = types.InlineKeyboardButton(
+        text="Число (скрыто)",
+        callback_data=f"hidden-random-number:{another_random_number}",
+    )
+    kb.add(random_number_button)
+    kb.add(hidden_random_number_button)
+
+    return kb
+
+@bot.message_handler(
+    commands=['random'],
+)
+def handle_command_random(message: types.Message):
+    kb = create_message_keyboard()
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.random_message_text,
+        reply_markup=kb,
+    )
+
+@bot.callback_query_handler(
+    func=0,
+    text=custom_filters.TextFilter(
+        starts_with="random-number",
+    ),
+)
+def handle_random_number_query(query: types.CallbackQuery):
+    prefix, _, number = query.data.partition(":")
+    text = f"Число: {number}"
+    bot.answer_callback_query(
+        callback_query_id=query.id,
+        text=text,
+    )
+
+@bot.callback_query_handler(
+    func=0,
+    text=custom_filters.TextFilter(
+        starts_with="hidden-random-number",
+    ),
+)
+def handle_hidden_random_number_query(query: types.CallbackQuery):
+    prefix, _, number = query.data.partition(":")
+    text = f"Число: {number}"
+    bot.answer_callback_query(
+        callback_query_id=query.id,
+        text=text,
+        show_alert=True,
+    )
+
+#--------44444444444444444444444444444444444444444444444444444444444444
 #--------33333333333333333333333333333333333333333333333
 #опрос
 #шаги опроса
@@ -81,7 +336,7 @@ def is_valid_email_message_text(message: types.Message) -> bool:
 
 @bot.message_handler(
     commands=["cancel"],
-    state="*`",
+    state="*",
 )
 @bot.message_handler(
     text=custom_filters.TextFilter(
