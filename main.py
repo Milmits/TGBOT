@@ -52,6 +52,24 @@ class OprosStates(StatesGroup):
     user_email = State()
     email_newsletter = State()
 
+all_opros_states = OprosStates().state_list
+
+def get_yes_or_no_kb():
+    keyboard = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    keyboard.add("да", "нет")
+    return keyboard
+
+yes_or_no_kb = get_yes_or_no_kb()
+
+cancel_kb = types.ReplyKeyboardMarkup(
+        resize_keyboard=True,
+        one_time_keyboard=True,
+)
+cancel_kb.add("Отмена")
+
 def is_valid_email(text: str) -> bool:
     return (
         "@" in text
@@ -61,7 +79,35 @@ def is_valid_email(text: str) -> bool:
 def is_valid_email_message_text(message: types.Message) -> bool:
     return message.text and is_valid_email(message.text)
 
+@bot.message_handler(
+    commands=["cancel"],
+    state="*`",
+)
+@bot.message_handler(
+    text=custom_filters.TextFilter(
+        equals="отмена",
+        ignore_case=True,
+    ),
+    state="*",
+)
+def handle_cancel_opros(message: types.Message):
+    with bot.retrieve_data(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+    ) as data:
+        data.pop("full_name", "")
+        data.pop("user_email", "")
 
+    bot.set_state(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        state=0,  # Явный сброс состояния
+    )
+    bot.send_message(
+        chat_id=message.chat.id,
+        text=messagepy.opros_message_cancelled,
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
 @bot.message_handler(commands=["opros"])
 def handle_commands_opros_start(message: types.Message):
     bot.set_state(
@@ -72,7 +118,10 @@ def handle_commands_opros_start(message: types.Message):
     bot.send_message(
         chat_id=message.chat.id,
         text=messagepy.opros_message_welcome_what_is_full_name,
+        parse_mode="HTML",
+        reply_markup=cancel_kb,
     )
+
 
 @bot.message_handler(
     state=OprosStates.full_name,
@@ -106,6 +155,7 @@ def handle_user_full_name_not_text(message: types.Message):
     bot.send_message(
         chat_id=message.chat.id,
         text=messagepy.opros_message_full_name_not_text,
+        parse_mode="HTML",
     )
 
 @bot.message_handler(
@@ -128,6 +178,7 @@ def handle_user_email_ok(message: types.Message):
     bot.send_message(
         chat_id=message.chat.id,
         text=messagepy.opros_message_email_is_ok,
+        reply_markup=yes_or_no_kb,
     )
 
 @bot.message_handler(
@@ -138,6 +189,7 @@ def handle_user_email_not_ok(message: types.Message):
     bot.send_message(
         chat_id=message.chat.id,
         text=messagepy.opros_message_email_not_ok,
+        parse_mode="HTML",
     )
 
 @bot.message_handler(
@@ -194,6 +246,7 @@ def handle_newsletter_yes_or_no(message: types.Message):
         chat_id=message.chat.id,
         text=text,
         parse_mode="HTML",
+        reply_markup=types.ReplyKeyboardRemove(),
     )
 
 
@@ -205,6 +258,7 @@ def handle_email_newsletter_yes_or_no_not_ok(message: types.Message):
     bot.send_message(
         chat_id=message.chat.id,
         text=messagepy.opros_message_invalid_yes_or_no,
+        reply_markup=yes_or_no_kb,
     )
 #--------33333333333333333333333333333333333333333333333
 #для кэширования данных

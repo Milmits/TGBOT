@@ -19,4 +19,5 @@ default_commands = [
     BotCommand("set_my_currency", 'Добавить валюту в меню'),
     BotCommand("delete_my_currency", 'Удалить валюту в меню'),
     BotCommand("opros", 'Опросник'),
+    BotCommand("cancel", 'Конец опросника'),
 ]

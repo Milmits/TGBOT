@@ -98,14 +98,25 @@ def send_markdown_message(message: types.Message):
 
 
 #Опросник
+opros_cancel_suggestion = formatting.format_text(
+    "",
+    formatting.format_text(
+        "Отменить опрос можно командой /cancel или просто отправьте",
+        formatting.hcode("отмена"),
+        separator=" ",
+    )
+)
+
 opros_message_welcome_what_is_full_name = formatting.format_text(
     "Пожалуйтса представьтесь",
     "Напишите ваше полное имя: Например - Иван Иванов",
+    opros_cancel_suggestion,
 )
 
 opros_message_full_name_not_text = formatting.format_text(
     "Это не текст, мы бы хотели узнать ваше имя",
     "Пожалуйста укажите ваше настоящее имя",
+    opros_cancel_suggestion,
 )
 
 opros_message_full_name_ok_and_ask_for_email = formatting.format_text(
@@ -116,6 +127,7 @@ opros_message_full_name_ok_and_ask_for_email = formatting.format_text(
 opros_message_email_not_ok = formatting.format_text(
     "Это не настоящий email",
     "Пожалуйста укажите валидный",
+    opros_cancel_suggestion,
 
 )
 
@@ -125,4 +137,8 @@ opros_message_email_is_ok = formatting.format_text(
 
 opros_message_invalid_yes_or_no = formatting.format_text(
     "Не понимаю, пожалуйста укажите да или нет",
+)
+
+opros_message_cancelled = formatting.format_text(
+    "Опрос отменен. Пройти заново: /opros",
 )
